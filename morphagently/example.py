@@ -1,3 +1,12 @@
+import struct
+# For morphagene, we need 32-bit float, 48kHz, stereo, little-endian.
+# Since the samples are 32 bit, each sample gets 4 bytes.
+# This is in stereo, it will be
+# byte 1 | byte 2 | byte 3 | byte 4 | byte 5 | byte 6 | byte 7 | byte 8
+# left channel                      | right channel
+# Each second of audion contains 48000 samples for each channel.
+# So each second of audio is 48000 * 8 bytes = 384000 bytes.
+# We can measure the length of the file by dividing the data chunk size by 384000.
 
 f = open('mg1.wav', 'rb')
 w = open('cued_mg1.wav', 'wb')
@@ -42,6 +51,12 @@ def read_data(f, chunk_marker):
     data = f.read(data_size)
     w.write(chunk_marker)
     w.write(data_size.to_bytes(4, 'little'))
+    # for i in range(int(data_size / 4)):
+    #     sample = f.read(4)
+    #     val = struct.unpack('f', sample)[0]
+    #     if val > 0.5:
+    #         print(val)
+    #     w.write(sample)
     w.write(data)
 
 def read_cue(f, size):
@@ -68,8 +83,6 @@ def write_cue():
     w.write((0).to_bytes(4, 'little')) # chunk start
     w.write((0).to_bytes(4, 'little')) # block start
     w.write(int(byteStringToInt(size) / 20).to_bytes(4, 'little')) # sample start
-
-
 
 def read_chunk_header(f, size):
     chunk_marker = f.read(4)
