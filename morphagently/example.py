@@ -8,7 +8,7 @@ import struct
 # So each second of audio is 48000 * 8 bytes = 384000 bytes.
 # We can measure the length of the file by dividing the data chunk size by 384000.
 
-f = open('mg1.wav', 'rb')
+f = open('song.wav', 'rb')
 w = open('cued_mg1.wav', 'wb')
 
 def byteStringToInt(s):
@@ -48,16 +48,30 @@ def read_data(f, chunk_marker):
     data_size = read_int(4)
     print(f.tell())
     print(data_size)
-    data = f.read(data_size)
     w.write(chunk_marker)
-    w.write(data_size.to_bytes(4, 'little'))
-    # for i in range(int(data_size / 4)):
-    #     sample = f.read(4)
-    #     val = struct.unpack('f', sample)[0]
-    #     if val > 0.5:
-    #         print(val)
-    #     w.write(sample)
-    w.write(data)
+    if chunk_marker == b'data':
+        temp = open('tmp', 'wb')
+        size = 0
+        silenceCount = 24000
+        for i in range(int(data_size / 4)):
+            sample = f.read(4)
+            val = struct.unpack('f', sample)[0]
+            if val > 0.03 or val < -0.03:
+                silenceCount = 0
+            else:
+                silenceCount += 1
+            if silenceCount < 24000:
+                # print(val)
+                temp.write(sample)
+                size += 4
+        print(size)
+        w.write(size.to_bytes(4, 'little'))
+        data = open('tmp', 'rb').read(size)
+        w.write(data)
+    else:
+        w.write(data_size.to_bytes(4, 'little'))
+        data = f.read(data_size)
+        w.write(data)
 
 def read_cue(f, size):
     print('---------------')

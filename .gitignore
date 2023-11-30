@@ -4,3 +4,4 @@ morphagently/__pycache__/
 *.py[cod]
 *$py.class
 *.wav
+tmp
