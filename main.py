@@ -1,7 +1,7 @@
-# from morphagently import main
+import sys
 from morphagently import Morphagently
 
-Morphagently(path='test.wav', silence_len=100, silence_threshold=0.03)
+Morphagently(path=sys.argv[1], silence_len=200, silence_threshold=0.03)
 
 # markers = example.hello('song.wav')
 # [rate, data, bits, cue] = example.read('song.wav', readmarkers=True)
