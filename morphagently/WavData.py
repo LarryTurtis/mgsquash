@@ -38,11 +38,19 @@ class WavData:
         val = struct.unpack('f', data)[0]
         q.append(val)
         sum += val * val
-        return [sum, 20 * math.log10(math.sqrt(sum / q.maxlen))]
+        if sum == 0:
+            return [sum, -50]
+        return [sum, math.sqrt(sum / q.maxlen)]
+    
+    # def __get_samples(self, start, end):
+    #     for i in range(2, total_bytes):
 
-    def remove_silence(self, silence_len, silence_threshold):
+
+    def detect_silence(self, silence_len, silence_threshold):
         with open(self.path, 'rb') as wavfile, open(TMP, 'wb') as tmpfile:
             size = 0
+            # Convert to float for easier comparison
+            silence_threshold = 10 ** (silence_threshold / 20)
             logging.debug("Removing silence for length %s and threshold %s", silence_len, silence_threshold)
             # We write the old header for the size, we'll update it after
 
@@ -80,14 +88,15 @@ class WavData:
 
             logging.debug("Wrote %s bytes", size)
             logging.debug("Markers: %s", self.markers)
-
-            # Now update the size
-            headers = wavfile.read(8)
-            tmpfile.write(headers)
-            tmpfile.seek(4)
-            tmpfile.write(write_int(size))
             self.__size = size
-            return self.get()
+
+            return self.markers
+            # Now update the size
+            # headers = wavfile.read(8)
+            # tmpfile.write(headers)
+            # tmpfile.seek(4)
+            # tmpfile.write(write_int(size))
+            # return self.get()
 
     def get(self):
         return open(TMP, 'rb').read(self.size)

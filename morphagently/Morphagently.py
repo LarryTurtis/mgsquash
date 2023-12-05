@@ -96,8 +96,8 @@ class Morphagently:
                 [pos, size] = self.chunks[chunk_marker]
                 f.seek(pos)
                 if (chunk_marker == b'data'):
-                    wavData = WavData(self.path, pos, size).remove_silence(self.silence_len, self.silence_threshold)
-                    w.write(wavData)
+                    wavData = WavData(self.path, pos, size).detect_silence(self.silence_len, self.silence_threshold)
+                    # w.write(wavData)
                 else:
                     data = f.read(size + 8)
                     w.write(data)
