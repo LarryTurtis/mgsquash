@@ -1,5 +1,5 @@
-import logging
-from .utils import read_int, read_int
+import time, logging
+from .utils import read_int, read_int, markers_to_positions
 from .WavData import WavData
 # For morphagene, we need 32-bit float, 48kHz, stereo, little-endian.
 # Since the samples are 32 bit, each sample gets 4 bytes.
@@ -21,7 +21,7 @@ class Morphagently:
         self.__find_chunk_headers()
         self.write_file()
 
-    def read_fmt(f):
+    def read_fmt(self):
         cksize = read_int(f.read(4)) # cksize 
         chunk = f.read(cksize)
         wFormatTag = chunk[:2]
@@ -56,16 +56,19 @@ class Morphagently:
         print('---------------')
         # Write a cue point at the 50 percent mark
 
-    def write_cue():
+    def write_cue(self, w, positions):
         w.write(b'cue ')
-        w.write((28).to_bytes(4, 'little')) #cksize
-        w.write((1).to_bytes(4, 'little')) #num points
-        w.write((0).to_bytes(4, 'little')) #id
-        w.write(int(read_int(size) / 20).to_bytes(4, 'little')) #position
-        w.write('data'.encode()) #data chunk id
-        w.write((0).to_bytes(4, 'little')) # chunk start
-        w.write((0).to_bytes(4, 'little')) # block start
-        w.write(int(read_int(size) / 20).to_bytes(4, 'little')) # sample start
+        cue_len = 4 + 24 * len(positions)
+        w.write(cue_len.to_bytes(4, 'little')) #cksize
+        w.write((len(positions)).to_bytes(4, 'little')) #num points
+        for i, pos in enumerate(positions):
+            w.write(i.to_bytes(4, 'little')) #id
+            w.write(pos.to_bytes(4, 'little')) #position
+            w.write('data'.encode()) #data chunk id
+            w.write((0).to_bytes(4, 'little')) # chunk start
+            w.write((0).to_bytes(4, 'little')) # block start
+            w.write(pos.to_bytes(4, 'little')) # sample start
+        return cue_len + 8
 
 
     def __read_file_header(self):
@@ -73,6 +76,7 @@ class Morphagently:
             f.seek(0)
             riff = f.read(4) # should be 'RIFF'
             size = f.read(4) # should be a 4-byte little-endian integer
+            self.size = read_int(size)
             wave = f.read(4) # should be 'WAVE'
             self.header = riff + size + wave
 
@@ -90,14 +94,29 @@ class Morphagently:
             logging.debug(self.chunks)
 
     def write_file(self):
-        with open(self.path, 'rb') as f, open('cue_' + self.path, 'wb') as w:
+        with open(self.path, 'rb') as f, open(str(time.time()) + self.path, 'wb') as w:
+            updated_bytes = 0
             w.write(self.header)
             for chunk_marker in self.chunks:
                 [pos, size] = self.chunks[chunk_marker]
                 f.seek(pos)
                 if (chunk_marker == b'data'):
-                    wavData = WavData(self.path, pos, size).remove_silence(self.silence_len, self.silence_threshold)
-                    w.write(wavData)
+                    wavData = WavData(self.path, pos, size)
+                    markers = wavData.detect_silence(self.silence_len, self.silence_threshold)
+                    removed_bytes = wavData.strip_sections(markers)
+                    positions = markers_to_positions(markers)                    
+                    logging.debug("Writing positions %s", positions)
+                    added_bytes = self.write_cue(w, positions)
+                    w.write(b'data')
+                    w.write(len(wavData.data).to_bytes(4, 'little'))
+                    w.write(wavData.data)
+                    updated_bytes = updated_bytes + added_bytes - removed_bytes
                 else:
                     data = f.read(size + 8)
                     w.write(data)
+            w.seek(4)
+            w.write((self.size + updated_bytes).to_bytes(4, 'little'))   
+            logging.debug("Wrote file with %s bytes added", added_bytes)
+            logging.debug("Wrote file with %s bytes removed", removed_bytes)
+            logging.debug("Wrote file with %s bytes updated", updated_bytes)
+
