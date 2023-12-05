@@ -12,13 +12,20 @@ class TestWavData:
        
     def test_should_have_the_right_size(self, simple_file):
         wavData = WavData(simple_file.name, 0, data_size) 
-        wavData.detect_silence(50, 0) == simple_file 
+        wavData.detect_silence(50, -24) == simple_file 
         assert wavData.size == one_second_of_audio
 
     def test_should_detect_silence_correctly(self, simple_file):
         wavData = WavData(simple_file.name, 0, data_size) 
         markers = wavData.detect_silence(50, -24) 
         assert markers == [[19769, 30035]]
+
+    def test_should_strip_silence_correctly(self, simple_file):
+        wavData = WavData(simple_file.name, 0, data_size) 
+        markers = wavData.detect_silence(50, -24) 
+        wavData.strip_sections(markers) 
+        assert wavData.size == one_second_of_audio - (30035 - 19769)
+
 @pytest.fixture
 def simple_file(tmp_path):
    with open(tmp_path / "file.wav", "wb") as file:

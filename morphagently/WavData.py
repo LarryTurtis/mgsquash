@@ -4,7 +4,6 @@ from .utils import read_int, write_int
 from collections import deque
 
 logging.basicConfig(level=logging.DEBUG)
-TMP = 'tmp.wav'
 class WavData:
 
     def __init__(self, path, data_pos, size) -> None:
@@ -12,8 +11,7 @@ class WavData:
         self.data_pos = data_pos
         self.__size = size
         self.markers = []
-        self.__remove_temp_file() 
-        with open(path, 'rb') as wavfile, open(TMP, 'wb') as tmpfile:
+        with open(path, 'rb') as wavfile:
             wavfile.seek(data_pos)
             self.data = wavfile.read(self.size)
             logging.debug(len(self.data))
@@ -23,14 +21,6 @@ class WavData:
     def size(self):
         return self.__size
     
-    def __remove_temp_file(self):
-        try:
-            os.remove(TMP)
-            logging.debug('Removed temp file')
-        except:
-            logging.debug('No temp file to remove')
-
-
     def __calculate_rms(self, q, data, sum):
         if q.maxlen == len(q):
             remove = q.popleft()
@@ -42,12 +32,17 @@ class WavData:
             return [sum, -50]
         return [sum, math.sqrt(sum / q.maxlen)]
     
-    # def __get_samples(self, start, end):
-    #     for i in range(2, total_bytes):
-
+    def strip_sections(self, markers):
+        size = 0
+        for [start, end] in markers:
+            size = size + (end - start)
+            self.data = self.data[:start] + self.data[end:]
+        logging.debug("Stripped %s bytes", size)
+        logging.debug(len(self.data))
+        self.__size = self.__size - size
 
     def detect_silence(self, silence_len, silence_threshold):
-        with open(self.path, 'rb') as wavfile, open(TMP, 'wb') as tmpfile:
+        with open(self.path, 'rb') as wavfile:
             size = 0
             # Convert to float for easier comparison
             silence_threshold = 10 ** (silence_threshold / 20)
@@ -78,7 +73,6 @@ class WavData:
                         logging.debug("Found silence at %s with rms %s", time, rms)
                         logging.debug("i: %s", i)
                         self.markers.append([i])
-                        # tmpfile.write(sec)
                     elif rms >= silence_threshold and flip:
                         time = i / 48 / 2
                         logging.debug("Found end of silence at %s with rms %s", time, rms)
@@ -91,12 +85,3 @@ class WavData:
             self.__size = size
 
             return self.markers
-            # Now update the size
-            # headers = wavfile.read(8)
-            # tmpfile.write(headers)
-            # tmpfile.seek(4)
-            # tmpfile.write(write_int(size))
-            # return self.get()
-
-    def get(self):
-        return open(TMP, 'rb').read(self.size)
