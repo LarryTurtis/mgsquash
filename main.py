@@ -2,7 +2,7 @@ import sys
 import pydub
 from morphagently import Morphagently
 
-Morphagently(path=sys.argv[1], silence_len=50, silence_threshold=-24)
+Morphagently(path=sys.argv[1], silence_len=200, silence_threshold=-24)
 
 # markers = example.hello('song.wav')
 # [rate, data, bits, cue] = example.read('song.wav', readmarkers=True)
