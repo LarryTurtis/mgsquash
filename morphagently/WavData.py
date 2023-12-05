@@ -27,9 +27,11 @@ class WavData:
         val = struct.unpack('f', data)[0]
         q.append(val)
         sum += val * val
-        if sum == 0:
-            return [sum, -50]
-        return [sum, math.sqrt(sum / q.maxlen)]
+        try:
+            result = [sum, math.sqrt(sum / q.maxlen)]
+        except:
+            result = [sum, 0]
+        return result
     
     def strip_sections(self, markers):
         offset = 0
@@ -54,35 +56,39 @@ class WavData:
             logging.debug("Reading %s samples per frame", samples_per_frame)
             
             q = deque(maxlen=samples_per_frame)
-            flip = False
             sum = 0
             total_bytes = int(len(self.data) / 4)
             # We start on the 3rd byte (2) because the first two are the header and size.
             # 1 sample = 4 bytes. 
             # We go through the bytestring using a frame of silence_len, shifting it by 1 sample each time.
             # We calculate the RMS of each frame and if it's below the threshold, we mark it as silence.
+            starts = []
             for i in range(2, total_bytes):
                 [sum, rms] = self.__calculate_rms(q, self.data[i*4:i*4+4], sum)
 
                 # Don't calculate anything until we've filled up the first frame.
-                if i > samples_per_frame:
-                    if rms < silence_threshold and not flip:
-                        flip = True
-                        time = i / 48 / 2 - silence_len
-                        logging.debug("Found silence at %s with rms %s", time, rms)
-                        logging.debug("i: %s", i)
-                        self.markers.append([i*4 - samples_per_frame*4])
-                    elif rms >= silence_threshold and flip:
-                        time = i / 48 / 2
-                        logging.debug("Found end of silence at %s with rms %s", time, rms)
-                        self.markers[len(self.markers) - 1].append(i*4)
-                        flip = False
-                size += 4
-            
-            if len(self.markers[len(self.markers) - 1]) < 2:
-                self.markers[len(self.markers) - 1].append(total_bytes * 4)
+                start = i*4 - samples_per_frame*4
+                if i > samples_per_frame and rms < silence_threshold:
+                    time = i / 48 / 2 - silence_len
+                    # logging.debug("Found silence at %s with rms %s", time, rms)
+                    starts.append(start)
 
+            markers = []
+            # combine adjacent starts
+            prev = starts.pop(0)
+            current_range_start = prev
+            for s in starts:
+                continuous = (s == prev + 1)
+                has_gap = s > prev + samples_per_frame*4
+
+                if not continuous and has_gap:
+                    markers.append([current_range_start,
+                                  prev + samples_per_frame*4])
+                    current_range_start = s
+                prev = s
+            markers.append([current_range_start, prev + samples_per_frame*4])
             logging.debug("Wrote %s bytes", size)
+            self.markers = markers
             logging.debug("Markers: %s", self.markers)
 
             return self.markers

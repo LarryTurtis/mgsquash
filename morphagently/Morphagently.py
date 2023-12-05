@@ -1,4 +1,4 @@
-import logging
+import time, logging
 from .utils import read_int, read_int, markers_to_positions
 from .WavData import WavData
 # For morphagene, we need 32-bit float, 48kHz, stereo, little-endian.
@@ -94,7 +94,7 @@ class Morphagently:
             logging.debug(self.chunks)
 
     def write_file(self):
-        with open(self.path, 'rb') as f, open('cue_' + self.path, 'wb') as w:
+        with open(self.path, 'rb') as f, open(str(time.time()) + self.path, 'wb') as w:
             updated_bytes = 0
             w.write(self.header)
             for chunk_marker in self.chunks:
