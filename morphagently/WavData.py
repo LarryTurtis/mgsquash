@@ -9,7 +9,7 @@ class WavData:
     def __init__(self, path, data_pos, size) -> None:
         self.path = path
         self.data_pos = data_pos
-        self.markers = []
+        self.__markers = []
         with open(path, 'rb') as wavfile:
             wavfile.seek(data_pos)
             self.data = wavfile.read(size)
@@ -19,6 +19,10 @@ class WavData:
     @property
     def size(self):
         return len(self.data) - 8
+    
+    @property
+    def markers(self):
+        return self.__markers
     
     def __calculate_rms(self, q, data, sum):
         if q.maxlen == len(q):
@@ -41,7 +45,7 @@ class WavData:
             offset += size
         logging.debug("Stripped %s bytes", offset)
         return offset
-
+    
     def detect_silence(self, silence_len, silence_threshold):
         with open(self.path, 'rb') as wavfile:
             size = 0
@@ -88,7 +92,7 @@ class WavData:
                 prev = s
             markers.append([current_range_start, prev + samples_per_frame*4])
             logging.debug("Wrote %s bytes", size)
-            self.markers = markers
-            logging.debug("Markers: %s", self.markers)
+            self.__markers = markers
+            logging.debug("Markers: %s", self.__markers)
 
-            return self.markers
+            return self.__markers

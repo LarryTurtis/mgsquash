@@ -11,7 +11,10 @@ def write_int(s):
 def markers_to_positions(markers):
     removed = 0
     cues = []
-    for [start, end] in markers:
+    # 4 bytes per sample * 2 channels
+    samples = [[int(start / 8), int(end / 8)] for [start, end] in markers]
+    for [start, end] in samples:
         cues.append(start - removed)
         removed = removed + (end - start)
+    logging.debug("Cues: %s", cues)
     return cues

@@ -21,7 +21,7 @@ class Morphagently:
         self.__find_chunk_headers()
         self.write_file()
 
-    def read_fmt(self):
+    def read_fmt(self, f):
         cksize = read_int(f.read(4)) # cksize 
         chunk = f.read(cksize)
         wFormatTag = chunk[:2]
@@ -37,12 +37,9 @@ class Morphagently:
         logging.debug('nAvgBytesPerSec: %s', str(read_int(nAvgBytesPerSec)))
         logging.debug('nBlockAlign: %s', str(read_int(nBlockAlign)))
         logging.debug('bitsPerSample: %s', str(read_int(bitsPerSample)))
-        w.write(b'fmt ')
-        w.write(cksize.to_bytes(4, 'little'))
-        w.write(chunk)
         
 
-    def read_cue(f, size):
+    def read_cue(self, f, size):
         print('---------------')
         cksize = read_int(f.read(4))
         num_points = read_int(f.read(4))
@@ -104,13 +101,19 @@ class Morphagently:
                     wavData = WavData(self.path, pos, size)
                     markers = wavData.detect_silence(self.silence_len, self.silence_threshold)
                     removed_bytes = wavData.strip_sections(markers)
+                    total_bytes = len(wavData.data)
+                    last_sample = int(total_bytes / 8)
                     positions = markers_to_positions(markers)                    
+                    positions.append(last_sample)
+
                     logging.debug("Writing positions %s", positions)
                     added_bytes = self.write_cue(w, positions)
-                    w.write(b'data')
-                    w.write(len(wavData.data).to_bytes(4, 'little'))
-                    w.write(wavData.data)
                     updated_bytes = updated_bytes + added_bytes - removed_bytes
+    
+                    w.write(b'data')
+                    logging.debug("Writing data of size %s", total_bytes)
+                    w.write(total_bytes.to_bytes(4, 'little'))
+                    w.write(wavData.data)
                 else:
                     data = f.read(size + 8)
                     w.write(data)
