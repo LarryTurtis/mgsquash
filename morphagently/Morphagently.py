@@ -1,4 +1,4 @@
-import time, logging
+import os, time, logging
 from .utils import read_int, read_int, markers_to_positions
 from .WavData import WavData
 # For morphagene, we need 32-bit float, 48kHz, stereo, little-endian.
@@ -21,22 +21,41 @@ class Morphagently:
         self.__find_chunk_headers()
         self.write_file()
 
-    def read_fmt(self, f):
-        cksize = read_int(f.read(4)) # cksize 
-        chunk = f.read(cksize)
-        wFormatTag = chunk[:2]
-        nChannels = chunk[2:4]
-        nSamplesPerSec = chunk[4:8] # nSamplesPerSec 
-        nAvgBytesPerSec = chunk[8:12] # nSamplesPerSec 
-        nBlockAlign = chunk[12:14] # nBlockAlign 
-        bitsPerSample = chunk[14:16]
+    def read_fmt(self, f, size):
+        chunk = f.read(size)
+        wFormatTag = read_int(chunk[:2])
+        logging.debug('wFormatTag: %s', str(wFormatTag))
+        if wFormatTag != 3:
+            raise Exception("Not a 32-bit float file")
+
+        nChannels = read_int(chunk[2:4])
+        logging.debug('nChannels: %s', str(nChannels))
+        if nChannels != 2:
+            raise Exception("Not a stereo file")
+        
+        nSamplesPerSec = read_int(chunk[4:8]) # nSamplesPerSec 
+        logging.debug('nSamplesPerSec: %s', str(nSamplesPerSec))
+        if nSamplesPerSec != 48000:
+            raise Exception("Not a 48kHz file")
+ 
+        nAvgBytesPerSec = read_int(chunk[8:12])
+        logging.debug('nAvgBytesPerSec: %s', str(nAvgBytesPerSec))
+        if nAvgBytesPerSec != 384000:
+            raise Exception("Not a 32bit file")
+
+        nBlockAlign = read_int(chunk[12:14]) # nBlockAlign 
+        logging.debug('nBlockAlign: %s', nBlockAlign)
+        if nBlockAlign != 8:
+            raise Exception("Not a 32bit file")
+
+        bitsPerSample = read_int(chunk[14:16])
+        logging.debug('bitsPerSample: %s', str(bitsPerSample))
+        if bitsPerSample != 32:
+            raise Exception("Not a 32bit file")
+
         remainder = chunk[16:]
-        logging.debug('wFormatTag: %s', str(read_int(wFormatTag)))
-        logging.debug('nChannels: %s', str(read_int(nChannels)))
-        logging.debug('nSamplesPerSec: %s', str(read_int(nSamplesPerSec)))
-        logging.debug('nAvgBytesPerSec: %s', str(read_int(nAvgBytesPerSec)))
-        logging.debug('nBlockAlign: %s', str(read_int(nBlockAlign)))
-        logging.debug('bitsPerSample: %s', str(read_int(bitsPerSample)))
+        if remainder != b'':
+            logging.warning("Found extra data in header, this may cause issues.")
         
 
     def read_cue(self, f, size):
@@ -72,9 +91,15 @@ class Morphagently:
         with open(self.path, 'rb') as f:
             f.seek(0)
             riff = f.read(4) # should be 'RIFF'
+            if (riff != b'RIFF'):
+                raise Exception("Not a RIFF file")
             size = f.read(4) # should be a 4-byte little-endian integer
             self.size = read_int(size)
+            if self.size <= 0:
+                raise Exception("Invalid file size")
             wave = f.read(4) # should be 'WAVE'
+            if (wave != b'WAVE'):
+                raise Exception("Not a WAVE file")
             self.header = riff + size + wave
 
     def __find_chunk_headers(self):
@@ -84,8 +109,20 @@ class Morphagently:
             while True:
                 chunk_marker = f.read(4)
                 chunk_size = read_int(f.read(4))
-                self.chunks[chunk_marker] = [f.tell() - 8, chunk_size]
-                f.seek(f.tell() + chunk_size)
+                chunk_start = f.tell()
+                self.chunks[chunk_marker] = [chunk_start - 8, chunk_size]
+
+                if chunk_marker == b'fmt ':
+                    self.read_fmt(f, chunk_size)
+                
+                if chunk_marker == b'cue ':
+                    logging.warning("Found existing cue chunk, removing")
+                    self.chunks.pop(chunk_marker)
+                
+                if chunk_marker == b'plst' or chunk_marker == b'wavl':
+                    raise Exception("Found plst or wavl chunk, not supported")
+
+                f.seek(chunk_start + chunk_size)
                 if not chunk_marker:
                     break
             logging.debug(self.chunks)
