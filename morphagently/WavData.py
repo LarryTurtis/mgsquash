@@ -40,7 +40,12 @@ class WavData:
     def strip_sections(self, markers):
         offset = 0
         for [start, end] in markers:
-            size = end - start
+
+            # We want to always remove a chunk of stereo data. 
+            # If the chunk is not divisible by 8 it means the size of the chunk
+            # Is ending on a single channel. We add 4 bytes to make it divisible by 8.
+            size = end - start if (end - start) % 8 == 0 else (end - start) + 4
+
             self.data = self.data[:start - offset] + self.data[(start - offset) + size:]
             offset += size
         logging.debug("Stripped %s bytes", offset)
