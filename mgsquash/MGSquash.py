@@ -1,4 +1,4 @@
-import os, time, logging
+import time, logging
 from .utils import read_int, read_int, markers_to_positions
 from .WavData import WavData
 # For morphagene, we need 32-bit float, 48kHz, stereo, little-endian.
@@ -12,7 +12,7 @@ from .WavData import WavData
 
 # read the FMT
 
-class Morphagently:
+class MGsquash:
     def __init__(self, path,silence_len=0,silence_threshold=0) -> None:
         self.path = path
         self.silence_len = silence_len
@@ -128,7 +128,9 @@ class Morphagently:
             logging.debug(self.chunks)
 
     def write_file(self):
-        with open(self.path, 'rb') as f, open(str(time.time()) + self.path, 'wb') as w:
+        self.name = self.path.replace('.wav', '')
+        newFile = (self.name + '_' + str(int(time.time())) + '.wav').replace(' ', '_')
+        with open(self.path, 'rb') as f, open(newFile, 'wb') as w:
             updated_bytes = 0
             w.write(self.header)
             for chunk_marker in self.chunks:
@@ -159,4 +161,5 @@ class Morphagently:
             logging.debug("Wrote file with %s bytes added", added_bytes)
             logging.debug("Wrote file with %s bytes removed", removed_bytes)
             logging.debug("Wrote file with %s bytes updated", updated_bytes)
+            logging.info("Written to %s", newFile)
 

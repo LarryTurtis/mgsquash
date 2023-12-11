@@ -2,8 +2,6 @@ import math
 import os, logging, struct
 from .utils import read_int, write_int
 from collections import deque
-
-logging.basicConfig(level=logging.DEBUG)
 class WavData:
 
     def __init__(self, path, data_pos, size) -> None:
