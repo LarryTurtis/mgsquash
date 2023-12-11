@@ -1,5 +1,5 @@
 # content of test_sample.py
-from morphagently import WavData
+from mgsquash import WavData
 import pytest, struct
 
 header_bytes = 8
@@ -18,13 +18,13 @@ class TestWavData:
     def test_should_detect_silence_correctly(self, simple_file):
         wavData = WavData(simple_file.name, 0, data_size) 
         markers = wavData.detect_silence(50, -24) 
-        assert markers == [[19769, 30035]]
+        assert markers == [[59876, 120136]]
 
     def test_should_strip_silence_correctly(self, simple_file):
         wavData = WavData(simple_file.name, 0, data_size) 
         markers = wavData.detect_silence(50, -24) 
         wavData.strip_sections(markers) 
-        assert wavData.size == one_second_of_audio - (30035 - 19769)
+        assert wavData.size == one_second_of_audio - (120136 - 59876 + 4)
 
 @pytest.fixture
 def simple_file(tmp_path):
