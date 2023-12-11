@@ -4,4 +4,5 @@
 *.py[cod]
 *$py.class
 *.wav
+dist
 tmp
